@@ -5,6 +5,7 @@ import subprocess
 import os
 
 
+
 def send_command(command):
 
     command_operator = command.split()[0]

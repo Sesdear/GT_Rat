@@ -1,6 +1,6 @@
 import asyncio
+import os
 from time import sleep
-
 from telebot.async_telebot import AsyncTeleBot
 import aiohttp
 import datetime
@@ -8,14 +8,24 @@ import cv2
 import numpy as np
 import time
 import inspect
+import socket
+from dotenv import load_dotenv
 
-bot = AsyncTeleBot("7157827956:AAEIFZDfKMK9n4T-q6MRZ6ZiCjceSLiGBQA")
-chatId1, chatId2 = 1710210365, 725407118
+load_dotenv()
 
-'''async def start_message():
+bot = AsyncTeleBot(os.getenv("TOKEN"))
+chatId1, chatId2 = os.getenv("ID1"), os.getenv("ID2")
+
+async def start_message():
     time = datetime.datetime.now()
-    await bot.send_message(chat_id=chatId1, text=f'Пк запущен: {time}')
-    await bot.send_message(chat_id=chatId2, text=f'Пк запущен: {time}')'''
+    await bot.send_message(chat_id=chatId1, text=f'''
+Пк запущен: {time}, 
+Имя пк: {socket.gethostname()}
+''')
+    await bot.send_message(chat_id=chatId2, text=f'''
+Пк запущен: {time}, 
+Имя пк: {socket.gethostname()}
+''')
 
 @bot.message_handler(commands=['photo'])
 async def photo(message):
@@ -65,7 +75,7 @@ async def video(message):
 
 
 async def main():
-    '''await start_message()'''
+    await start_message()
     await bot.polling()
 
 if __name__ == '__main__':
