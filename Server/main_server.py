@@ -62,6 +62,3 @@ while True:
         print("Client PC ID duplicate")
 
 
-
-
-conn.close()
