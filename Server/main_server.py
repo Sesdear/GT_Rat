@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
-
 import socket
 import threading
+import FromSuClientCommandParser
 PORT: int = 1984
 IP: str = ''
 
@@ -27,6 +26,12 @@ def getSocketByHostname(list_of_tuples, search_string):
     for i in list_of_tuples:
         if search_string in i:
             return i[0]
+    return None
+
+def getHostnameBySocket(list_of_tuples, socket):
+    for i in list_of_tuples:
+        if socket in i:
+            return i[2]
     return None
 def sendToClient(clientsocket: socket, command: str):
     clientsocket.send(bytes(command, encoding = 'utf-8'))
@@ -55,57 +60,82 @@ def clientListener(clientsocket,addr):
             return
         else:
             print(f"{msg}")
+            str_reply = f"from {getHostnameBySocket(clientsocket, Clients)} : {msg}"
+            for i in SuClients:
+                sendToClient(i[0], str_reply)
         '''Some Handler Here'''
 
 def suClientListener(clientsocket,addr):
     while True:
         msg = clientsocket.recv(1024)
         if msg == b"":
+            print("close(((")
+            #deleteConnection(SuClients, SuThreads, clientsocket)
             clientsocket.close()
             return
         else:
             print(f"{msg}")
+            data = FromSuClientCommandParser.parse(msg)
+            print(data)
+            if data[0] == "SERVER":
+                pass
+            else:
+                if checkClientDuplicates(Clients, data[0]):
+                    sendToClientByName(data[0], data[1], Clients)
+                    print(f"sending {data[1]} to {data[0]}")
+                    #sendToClient(clientsocket, f"sending {data[1]} to {data[0]}")
         '''Some Handler Here'''
 
 
+def deleteConnection(ClientsList: list, ThreadsList: list, socket):
+    index = ClientsList.index(socket)
+    ClientsList.pop(index)
+    ThreadsList.pop(index)
 
-try:
-    while True:
-        conn, addr = sock.accept()
-        hostname = socket.gethostname()
-        print(hostname, 'connected:', addr)
+def updateConnectionsLists(ClientsList: list, ThreadsList: list):
+    for index, i in enumerate(ThreadsList):
+        if not i.is_alive():
+            ThreadsList.pop(index)
+            ClientsList.pop(index)
+    for index, i in enumerate(ClientsList):
+        if i.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR) != 0:
+            ThreadsList.pop(index)
+            ClientsList.pop(index)
 
-        msg = on_new_client(conn, addr)
-        if msg == b"client":
-            if not checkClientDuplicates(Clients, hostname):
-                Clients.append((conn, addr, hostname))
-                Threads.append(threading.Thread(target=clientListener, args = (conn, addr)))
-                Threads[len(Threads)-1].start()
-                for index, i in enumerate(Threads):
-                    if not i.is_alive():
-                        Threads.pop(index)
-                        Clients.pop(index)
-                print(Threads)
-                print(Clients)
-                sendToClientByName("DESKTOP-BO4V25B", "ABAS", Clients)
-            else:
-                print("DUPLICATE PC")
-        elif msg == b"sudo":
-            if not checkClientDuplicates(SuClients, hostname):
-                SuClients.append((conn, addr, hostname))
-                SuThreads.append(threading.Thread(target=suClientListener, args=(conn, addr)))
-                SuThreads[len(SuThreads) - 1].start()
-                for index, i in enumerate(Threads):
-                    if not i.is_alive():
-                        SuThreads.pop(index)
-                        SuClients.pop(index)
-                print(SuThreads)
+def serverTick():
+    try:
+        while True:
+            conn, addr = sock.accept()
+            hostname = socket.gethostname()
+            print(hostname, 'connected:', addr)
+
+            msg = on_new_client(conn, addr)
+            if msg == b"client":
+                updateConnectionsLists(Clients, Threads)
+                if not checkClientDuplicates(Clients, hostname):
+                    Clients.append((conn, addr, hostname))
+                    Threads.append(threading.Thread(target=clientListener, args = (conn, addr)))
+                    Threads[len(Threads)-1].start()
+                    print(Threads)
+                    print(Clients)
+                    # sendToClientByName("DESKTOP-BO4V25B", "", Clients)
+                else:
+                    print("DUPLICATE PC")
+            elif msg == b"sudo":
+                updateConnectionsLists(SuClients, SuThreads)
                 print(SuClients)
-                sendToClientByName("DESKTOP-BO4V25B", "SUDO", SuClients)
-            else:
-                print("DUPLICATE SUDO PC")
+                if not checkClientDuplicates(SuClients, hostname):
+                    SuClients.append((conn, addr, hostname))
+                    SuThreads.append(threading.Thread(target=suClientListener, args=(conn, addr)))
+                    SuThreads[len(SuThreads) - 1].start()
+                    print(SuThreads)
+                    print(SuClients)
+                    sendToClient(conn, "SUDO USER ACTIVATED")
+                else:
+                    print("DUPLICATE SUDO PC")
 
-except socket.error or socket.timeout as e:
-    print("NUH UH")
+    except socket.error or socket.timeout as e:
+        print("NUH UH")
 
 
+serverTick()
